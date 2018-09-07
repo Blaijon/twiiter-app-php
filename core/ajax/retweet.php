@@ -1,5 +1,7 @@
 <?php 
 	include '../init.php';
+	$getFromU->preventAccess($_SERVER['REQUEST_METHOD'], realpath(__FILE__), realpath($_SERVER['SCRIPT_FILENAME']));
+
 	$user_id = $_SESSION['user_id'];
 
 	if(isset($_POST['retweet']) && !empty($_POST['retweet'])){

@@ -6,6 +6,7 @@ if($getFromU->loggedIn() === false){
 
 $user_id = $_SESSION['user_id'];
 $user = $getFromU ->userData($user_id); 
+$notify = $getFromM->getNotificationCount($user_id);
 
 if(isset($_POST['screenName'])){
 	if(!empty($_POST['screenName'])){
@@ -53,7 +54,7 @@ if(isset($_FILES['profileCover'])){
 <!doctype html>
 <html>
 <head>
-	<title>Profile edit page</title>
+	<title><?php echo $profileData->screenName.' (@'.$profileData->username.') edit page'; ?></title>
 	<meta charset="UTF-8" />
 	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.6.3/css/font-awesome.css"/>
 	<link rel="stylesheet" href="assets/css/style-complete.css"/>
@@ -71,8 +72,10 @@ if(isset($_FILES['profileCover'])){
 		<div class="nav-left">
 			<ul>
 				<li><a href="home.php"><i class="fa fa-home" aria-hidden="true"></i>Home</a></li>
-				<li><a href="i/notifications"><i class="fa fa-bell" aria-hidden="true"></i>Notification</a></li>
-				<li><i class="fa fa-envelope" aria-hidden="true"></i>Messages</li>
+				<?php if($getFromU->loggedIn()== true) {?>
+				<li><a href="<?php echo BASE_URL; ?>i/notifications"><i class="fa fa-bell" aria-hidden="true"></i>Notification<span id="notification"><?php if($notify->totalN > 0){echo '<span class="span-i">'.$notify->totalN.'</span>';}?></span></a></li>
+				<li id="messagePopup"><i class="fa fa-envelope" aria-hidden="true"></i>Messages<span id="messages"><?php if($notify->totalM > 0){echo '<span class="span-i">'.$notify->totalN.'</span>';}?></span></li>
+				 <?php } ?>
 			</ul>
 		</div>
 		<!-- nav left ends-->
@@ -152,12 +155,12 @@ if(isset($_FILES['profileCover'])){
 						TWEETS
 					</div>
 					<div class="n-bottom">
-						0
+						<?php $getFromT->countTweets($user_id); ?>
 					</div>
 				</a>
 			</li>
 			<li>
-				<a href="#">
+				<a href="<?php echo BASE_URL.$user->username.'/following'; ?>">
 					<div class="n-head">
 						FOLLOWINGS
 					</div>
@@ -167,7 +170,7 @@ if(isset($_FILES['profileCover'])){
 				</a>
 			</li>
 			<li>
-				<a href="#">
+				<a href="<?php echo BASE_URL.$user->username.'/followers'; ?>">
 					<div class="n-head">
 						FOLLOWERS
 					</div>
@@ -182,7 +185,7 @@ if(isset($_FILES['profileCover'])){
 						LIKES
 					</div>
 					<div class="n-bottom">
-						0
+						<?php $getFromT->countLikes($user_id); ?>
 					</div>
 				</a>
 			</li>
@@ -337,10 +340,141 @@ if(isset($_FILES['profileCover'])){
 
 <div class="in-center">
 	<div class="in-center-wrap">	
-		<!-- HERE WILL BE TWEETS -->
+		<?php 
+			$tweets = $getFromT->getUserTweets($user_id);
+			foreach($tweets as $tweet){
+  		$likes = $getFromT->likes($user_id, $tweet->tweetID);
+  		$retweet = $getFromT->checkRetweet($tweet->tweetID, $user_id);
+  		$user = $getFromU->userData($tweet->retweetBy);
+  		echo '<div class="all-tweet">
+<div class="t-show-wrap">	
+ <div class="t-show-inner">
+	'.(( $retweet['retweetID'] === $tweet->retweetID OR $tweet->retweetID > 0) ?'
+	<div class="t-show-banner">
+		<div class="t-show-banner-inner">
+			<span><i class="fa fa-retweet" aria-hidden="true"></i></span><span>'.$user->screenName.' Retweeted</span>
+		</div>
+	</div>' 
+	: '').'
+
+	'.((!empty($tweet->retweetMsg) && $tweet->tweetID === $retweet['tweetID'] or $tweet->retweetID > 0) ? '
+		<div class="t-show-popup" data-tweet="'.$tweet->tweetID.'">
+		<div class="t-show-head">
+	<div class="t-show-img">
+		<img src="'.BASE_URL.$user->profileImage.'"/>
+	</div>
+	<div class="t-s-head-content">
+		<div class="t-h-c-name">
+			<span><a href="'.BASE_URL.$user->username.'">'.$user->screenName.'</a></span>
+			<span>@'.$user->username.'</span>
+			<span>'.$getFromU->timeAgo($retweet['postedOn']).'</span>
+		</div>
+		<div class="t-h-c-dis">
+			'.$getFromT->getTweetLinks($tweet->retweetMsg).'
+		</div>
+	</div>
+</div>
+<div class="t-s-b-inner">
+	<div class="t-s-b-inner-in">
+		<div class="retweet-t-s-b-inner">
+		'.((!empty($tweet->tweetImage)) ? '
+			<div class="retweet-t-s-b-inner-left">
+				<img src="'.BASE_URL.$tweet->tweetImage.'"class="imagePopup" data-tweet="'.$tweet->tweetID.'"/>	
+			</div>' : '').'
+			<div>
+				<div class="t-h-c-name">
+					<span><a href="'.BASE_URL.$tweet->username.'">'.$tweet->screenName.'</a></span>
+					<span>@'.$tweet->username.'</span>
+					<span>'.$getFromU->timeAgo($tweet->postedOn).'</span>
+				</div>
+				<div class="retweet-t-s-b-inner-right-text">		
+					'.$getFromT->getTweetLinks($tweet->status).'
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+</div>
+' : '
+	
+	<div class="t-show-popup" data-tweet="'.$tweet->tweetID.'">
+		<div class="t-show-head">
+			<div class="t-show-img">
+				<img src="'.BASE_URL.$tweet->profileImage.'"/>
+			</div>
+			<div class="t-s-head-content">
+				<div class="t-h-c-name">
+					<span><a href="'.$tweet->username.'">'.$tweet->screenName.'</a></span>
+					<span>@'.$tweet->username.'</span>
+					<span>'.$getFromU->timeAgo($tweet->postedOn).'</span>
+				</div>
+				<div class="t-h-c-dis">
+					'.$getFromT->getTweetLinks($tweet->status).'
+				</div>
+			</div>
+		</div>'.
+		((!empty($tweet->tweetImage)) ? 
+		'
+		<!--tweet show head end-->
+		<div class="t-show-body">
+		  <div class="t-s-b-inner">
+		   <div class="t-s-b-inner-in">
+		     <img src="'.BASE_URL.$tweet->tweetImage.'" class="imagePopup" data-tweet="'.$tweet->tweetID.'"/>
+		   </div>
+		  </div>
+		</div>
+		<!--tweet show body end-->': '').'
+	
+	
+	</div>').'
+	<div class="t-show-footer">
+		<div class="t-s-f-right">
+			<ul> 
+				<li><button><a href="#"><i class="fa fa-share" aria-hidden="true"></i></a></button></li>	
+				<li>'.(($tweet->tweetID ===$retweet['retweetID'] OR $user_id == $retweet['retweetBy']) ? '<button class="retweeted" data-tweet="'.$tweet->tweetID.'" data-user="'.$tweet->tweetBy.'"><a href="#"><i class="fa fa-retweet" aria-hidden="true"></i><span class="retweetsCount">'.$tweet->retweetCount.'</span></a></button>' : '<button class="retweet" data-tweet="'.$tweet->tweetID.'" data-user="'.$tweet->tweetBy.'"><a href="#"><i class="fa fa-retweet" aria-hidden="true"></i><span class="retweetsCount">'.(($tweet->retweetCount > 0) ? $tweet->retweetCount : '').'</span></a></button>' ).'</li>
+				<li>'.(($likes['likeOn'] === $tweet->tweetID) ? '<button class="unlike-btn" data-tweet="'.$tweet->tweetID.'" data-user="'.$tweet->tweetBy.'">
+						
+							<i class="fa fa-heart" aria-hidden="true"></i>
+							<span class="likesCounter">'.$tweet->likesCount.'</span>
+						
+					</button>' : '<button class="like-btn" data-tweet="'.$tweet->tweetID.'" data-user="'.$tweet->tweetBy.'">
+						
+							<i class="fa fa-heart-o" aria-hidden="true"></i>
+							<span class="likesCounter">'.(($tweet->likesCount > 0) ? $tweet->likesCount : '').'</span>
+						
+					</button>').'
+					
+				</li>
+					'.(($tweet->tweetBy === $user_id)? '
+					<li>
+					<a href="#" class="more"><i class="fa fa-ellipsis-h" aria-hidden="true"></i></a>
+					<ul> 
+					  <li><label class="deleteTweet" data-tweet="'.$tweet->tweetID.'">Delete Tweet</label></li>
+					</ul>
+				</li>' : '').'
+			</ul>
+		</div>
+	</div>
+</div>
+</div>
+</div>';
+  	}
+		 ?>
 	</div>
 	<!-- in left wrap-->
    <div class="popupTweet"></div>
+   <script type="text/javascript" src="<?php echo BASE_URL; ?>assets/js/like.js"></script>
+   <script type="text/javascript" src="<?php echo BASE_URL; ?>assets/js/retweet.js"></script>
+ 			<script type="text/javascript" src="<?php echo BASE_URL; ?>assets/js/popuptweets.js"></script>
+ 			<script type="text/javascript" src="<?php echo BASE_URL; ?>assets/js/delete.js"></script>
+ 			<script type="text/javascript" src="<?php echo BASE_URL; ?>assets/js/comment.js"></script>
+ 			<script type="text/javascript" src="<?php echo BASE_URL; ?>assets/js/popupForm.js"></script>
+  			<script type="text/javascript" src="<?php echo BASE_URL; ?>assets/js/search.js"></script>
+ 			<script type="text/javascript" src="<?php echo BASE_URL; ?>assets/js/hashtag.js"></script>
+ 			<script type="text/javascript" src="<?php echo BASE_URL; ?>assets/js/messages.js"></script>
+ 			<script type="text/javascript" src="<?php echo BASE_URL; ?>assets/js/postMessage.js"></script>
+ 			 			<script type="text/javascript" src="<?php echo BASE_URL; ?>assets/js/notification.js"></script>
+
 
 </div>
 <!-- in center end -->
@@ -348,15 +482,16 @@ if(isset($_FILES['profileCover'])){
 <div class="in-right">
 	<div class="in-right-wrap">
 		<!--==WHO TO FOLLOW==-->
-           <!-- HERE -->
+         <?php $getFromF->whoToFollow($user_id, $user_id); ?>
 		<!--==WHO TO FOLLOW==-->
 			
 		<!--==TRENDS==-->
- 	 	   <!-- HERE -->
+ 	 	   <?php $getFromT->trends(); ?>
 	 	<!--==TRENDS==-->
 	</div>
 	<!-- in left wrap-->
 </div>
+<script type="text/javascript" src="<?php echo BASE_URL; ?>assets/js/follow.js"></script>
 <!-- in right end -->
 
    </div>

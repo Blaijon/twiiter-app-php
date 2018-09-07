@@ -1,28 +1,26 @@
 <?php 
-if(isset($_GET['username']) === true && empty($_GET['username']) === false){
-	include 'core/init.php';
-	$username = $getFromU->checkInput($_GET['username']);
-	$profileId = $getFromU->userIdByUsername($username);
-	$profileData = $getFromU->userData($profileId);
-	$user_id = @$_SESSION['user_id'];
-	$user = $getFromU->userData($user_id);
-	$notify = $getFromM->getNotificationCount($user_id);
 
-	if(!$profileData){
-		header('Location: '.BASE_URL.'index.php');
+	include 'core/init.php';
+	if(isset($_GET['hashtag']) && !empty($_GET['hashtag'])){
+
+		$hashtag = $getFromU->checkInput($_GET['hashtag']);
+		$user_id = @$_SESSION['user_id'];
+		$user = $getFromU->userData($user_id);
+		$tweets = $getFromT->getTweetByHash($hashtag);
+		$accounts = $getFromT->getUsersByHash($hashtag);
+		$notify = $getFromM->getNotificationCount($user_id);
+	}else{
+		header('Location: '.BASE_URL.' index.php');
 	}
 
-}else{
-	header('Location: index.php');
-} 
 
-?>
+ ?>
 
 
-<!doctype html>
+ <!doctype html>
 <html>
 	<head>
-		<title><?php echo $profileData->screenName.' (@'.$profileData->username.')'; ?></title>
+		<title><?php echo '#'.$hashtag . ' hashtag on tweety'; ?></title>
 		<meta charset="UTF-8" />
  		<link rel="stylesheet" href="<?php echo BASE_URL; ?>assets/css/style-complete.css"/>
    		<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.6.3/css/font-awesome.css"/>  
@@ -76,173 +74,138 @@ if(isset($_GET['username']) === true && empty($_GET['username']) === false){
 	</div><!-- nav ends -->
 	</div><!-- nav container ends -->
 </div><!-- header wrapper end -->
-<!--Profile cover-->
-<div class="profile-cover-wrap"> 
-<div class="profile-cover-inner">
-	<div class="profile-cover-img">
-		<!-- PROFILE-COVER -->
-		<img src="<?php echo BASE_URL.$profileData->profileCover; ?>"/>
-	</div>
-</div>
-<div class="profile-nav">
- <div class="profile-navigation">
-	<ul>
-		<li>
-		<div class="n-head">
-			TWEETS
-		</div>
-		<div class="n-bottom">
-		  <?php $getFromT->countTweets($profileId); ?>
-		</div>
-		</li>
-		<li>
-			<a href="<?php echo BASE_URL.$profileData->username; ?>/following">
-				<div class="n-head">
-					<a href="<?php echo BASE_URL.$profileData->username; ?>/following">FOLLOWING</a>
-				</div>
-				<div class="n-bottom">
-					<span class="count-following"><?php echo $profileData->following; ?></span>
-				</div>
-			</a>
-		</li>
-		<li>
-		 <a href="<?php echo BASE_URL.$profileData->username; ?>/followers">
-				<div class="n-head">
-					FOLLOWERS
-				</div>
-				<div class="n-bottom">
-					<span class="count-followers"><?php echo $profileData->followers; ?></span>
-				</div>
-			</a>
-		</li>
-		<li>
-			<a href="#">
-				<div class="n-head">
-					LIKES
-				</div>
-				<div class="n-bottom">
-					<?php $getFromT->countLikes($profileId); ?>
-				</div>
-			</a>
-		</li>
-	</ul>
-	<div class="edit-button">
-		<span>
-			<?php echo $getFromF->followBtn($profileId, $user_id,$profileData->user_id); ?>
-		</span>
-	</div>
-    </div>
-</div>
-</div><!--Profile Cover End-->
 
+
+<!--#hash-header-->
+<div class="hash-header">
+	<div class="hash-inner">
+		<h1>#<?php echo $hashtag; ?></h1>
+	</div>
+</div>	
+<!--#hash-header end-->
+
+<!--hash-menu-->
+<div class="hash-menu">
+	<div class="hash-menu-inner">
+		<ul>
+ 			<li><a href="<?php echo BASE_URL.'hashtag/'.$hashtag; ?>">Latest</a></li>
+			<li><a href="<?php echo BASE_URL.'hashtag/'.$hashtag.'?f=users';?>">Accounts</a></li>
+			<li><a href="<?php echo BASE_URL.'hashtag/'.$hashtag.'?f=photos';?>">Photos</a></li>
+  		</ul>
+	</div>
+</div>
+<!--hash-menu-->
 <!---Inner wrapper-->
+
 <div class="in-wrapper">
- <div class="in-full-wrap">
-   <div class="in-left">
-     <div class="in-left-wrap">
-	<!--PROFILE INFO WRAPPER END-->
-	<div class="profile-info-wrap">
-	 <div class="profile-info-inner">
-	 <!-- PROFILE-IMAGE -->
-		<div class="profile-img">
-			<img src="<?php echo BASE_URL.$profileData->profileImage; ?>"/>
-		</div>	
+	<div class="in-full-wrap">
+		
+		<div class="in-left">
+			<div class="in-left-wrap">
 
-		<div class="profile-name-wrap">
-			<div class="profile-name">
-				<a href="<?php echo BASE_URL.$profileData->profileCover; ?>"><?php echo $profileData->screenName; ?></a>
+			   <!-- Who TO Follow -->
+			   <?php $getFromF->whoToFollow($user_id,$user_id); ?>
+			   <?php $getFromT->trends(); ?>
+
+			   <!--TRENDS-->
+			   
 			</div>
-			<div class="profile-tname">
-				@<span class="username"><?php echo $profileData->username; ?></span>
-			</div>
+			<!-- in left wrap-->
 		</div>
-
-		<div class="profile-bio-wrap">
-		 <div class="profile-bio-inner">
-		    <?php echo $profileData->bio; ?>
-		 </div>
-		</div>
-
-<div class="profile-extra-info">
-	<div class="profile-extra-inner">
-		<ul>
-			<?php if(!empty($profileData->country)) {?>
-			<li>
-				<div class="profile-ex-location-i">
-					<i class="fa fa-map-marker" aria-hidden="true"></i>
-				</div>
-				<div class="profile-ex-location">
-					<?php echo $profileData->country; ?>
-				</div>
-			</li>
-		<?php } ?>
-		<?php if(!empty($profileData->website)) { ?>
-			<li>
-				<div class="profile-ex-location-i">
-					<i class="fa fa-link" aria-hidden="true"></i>
-				</div>
-				<div class="profile-ex-location">
-					<a href="<?php echo $profileData->website; ?>" target="_blink"><?php echo $profileData->website; ?></a>
-				</div>
-			</li>
-		<?php } ?>
-			<li>
-				<div class="profile-ex-location-i">
-					<!-- <i class="fa fa-calendar-o" aria-hidden="true"></i> -->
-				</div>
-				<div class="profile-ex-location">
- 				</div>
-			</li>
-			<li>
-				<div class="profile-ex-location-i">
-					<!-- <i class="fa fa-tint" aria-hidden="true"></i> -->
-				</div>
-				<div class="profile-ex-location">
-				</div>
-			</li>
-		</ul>						
-	</div>
-</div>
-
-<div class="profile-extra-footer">
-	<div class="profile-extra-footer-head">
-		<div class="profile-extra-info">
-			<ul>
-				<li>
-					<div class="profile-ex-location-i">
-						<i class="fa fa-camera" aria-hidden="true"></i>
-					</div>
-					<div class="profile-ex-location">
-						<a href="#">0 Photos and videos </a>
-					</div>
+		<!-- in left end-->
+<?php if(strpos($_SERVER['REQUEST_URI'], '?f=photos')) :?>
+<!-- TWEETS IMAGES  -->
+ <div class="hash-img-wrapper"> 
+ 	<div class="hash-img-inner"> 
+ 		<?php 
+ 		foreach ($tweets as $tweet) {
+ 			$likes = $getFromT->likes($user_id, $tweet->tweetID);
+  		$retweet = $getFromT->checkRetweet($tweet->tweetID, $user_id);
+  		$user = $getFromU->userData($tweet->retweetBy);
+ 			if(!empty($tweet->tweetImage)){
+ 				echo '<div class="hash-img-flex">
+		 	<img src="'.BASE_URL.$tweet->tweetImage;'" class="imagePopup" data-tweet="'.$tweet->tweetID.'"/>
+		 	<div class="hash-img-flex-footer">
+		 		<ul>
+		 			'.(($getFromU->loggedIn() === true) ? '
+				<li><button><a href="#"><i class="fa fa-share" aria-hidden="true"></i></a></button></li>	
+				<li>'.(($tweet->tweetID ===$retweet['retweetID'] OR $user_id == $retweet['retweetBy']) ? '<button class="retweeted" data-tweet="'.$tweet->tweetID.'" data-user="'.$tweet->tweetBy.'"><a href="#"><i class="fa fa-retweet" aria-hidden="true"></i><span class="retweetsCount">'.$tweet->retweetCount.'</span></a></button>' : '<button class="retweet" data-tweet="'.$tweet->tweetID.'" data-user="'.$tweet->tweetBy.'"><a href="#"><i class="fa fa-retweet" aria-hidden="true"></i><span class="retweetsCount">'.(($tweet->retweetCount > 0) ? $tweet->retweetCount : '').'</span></a></button>' ).'</li>
+				<li>'.(($likes['likeOn'] === $tweet->tweetID) ? '<button class="unlike-btn" data-tweet="'.$tweet->tweetID.'" data-user="'.$tweet->tweetBy.'">
+						
+							<i class="fa fa-heart" aria-hidden="true"></i>
+							<span class="likesCounter">'.$tweet->likesCount.'</span>
+						
+					</button>' : '<button class="like-btn" data-tweet="'.$tweet->tweetID.'" data-user="'.$tweet->tweetBy.'">
+						
+							<i class="fa fa-heart-o" aria-hidden="true"></i>
+							<span class="likesCounter">'.(($tweet->likesCount > 0) ? $tweet->likesCount : '').'</span>
+						
+					</button>').'
+					
 				</li>
-			</ul>
+					'.(($tweet->tweetBy === $user_id)? '
+					<li>
+					<a href="#" class="more"><i class="fa fa-ellipsis-h" aria-hidden="true"></i></a>
+					<ul> 
+					  <li><label class="deleteTweet" data-tweet="'.$tweet->tweetID.'">Delete Tweet</label></li>
+					</ul>
+				</li>' : '').'
+					' : '<li><button><a href="#"><i class="fa fa-share" aria-hidden="true"></i></a></button></li>
+					<li><button><a href="#"><i class="fa fa-retweet" aria-hidden="true"></i></a></button></li>
+					<li><button><a href="#"><i class="fa fa-heart" aria-hidden="true"></i></a></button></li>').'
+		 		</ul>
+		 	</div>
+		</div>';
+ 			}
+ 		}
+
+ 		 ?>
+		 
+	</div>
+</div> 
+<!-- TWEETS IMAGES -->
+		<?php elseif(strpos($_SERVER['REQUEST_URI'], '?f=users')) :?>
+<!--TWEETS ACCOUTS-->
+<div class="wrapper-following">
+<div class="wrap-follow-inner">
+<?php foreach($accounts AS $users) :?>
+ <div class="follow-unfollow-box">
+	<div class="follow-unfollow-inner">
+		<div class="follow-background">
+			<img src="<?php echo BASE_URL.$users->profileCover; ?>"/>
+		</div>
+		<div class="follow-person-button-img">
+			<div class="follow-person-img">
+			 	<img src="<?php echo BASE_URL.$users->profileImage; ?>"/>
+			</div>
+			<div class="follow-person-button">
+			   <?php echo $getFromF->followBtn($users->user_id, $user_id, $user_id); ?>
+			</div>
+		</div>
+		<div class="follow-person-bio">
+			<div class="follow-person-name">
+				<a href="<?php echo BASE_URL.$users->username; ?>"><?php echo $users->screenName; ?></a>
+			</div>
+			<div class="follow-person-tname">
+				<a href="<?php echo BASE_URL.$users->username; ?>">@<?php echo $users->username; ?></a>
+			</div>
+			<div class="follow-person-dis">
+			   <?php echo $getFromT->getTweetLinks($users->bio); ?>
+			</div>
 		</div>
 	</div>
-	<div class="profile-extra-footer-body">
-		<ul>
-			 <!-- <li><img src="#"/></li> -->
-		</ul>		
-	</div>
 </div>
+<?php  endforeach; ?>
+</div>
+</div>
+<!-- TWEETS ACCOUNTS -->
+		<?php else :?>
+	 <div class="in-center">
+		<div class="in-center-wrap">
+		<!-- TWEETS -->
 
-	 </div>
-	<!--PROFILE INFO INNER END-->
-
-	</div>
-	<!--PROFILE INFO WRAPPER END-->
-
-	</div>
-	<!-- in left wrap-->
-
-  </div>
-	<!-- in left end-->
-
-<div class="in-center">
-	<div class="in-center-wrap">
-	<?php 
-		$tweets = $getFromT->getUserTweets($profileId);
-		foreach($tweets as $tweet){
+		<?php
+			foreach($tweets as $tweet){
   		$likes = $getFromT->likes($user_id, $tweet->tweetID);
   		$retweet = $getFromT->checkRetweet($tweet->tweetID, $user_id);
   		$user = $getFromU->userData($tweet->retweetBy);
@@ -363,9 +326,11 @@ if(isset($_GET['username']) === true && empty($_GET['username']) === false){
 </div>
 </div>';
   	}
-	 ?>
-	</div><!-- in left wrap-->
-  <div class="popupTweet"></div>
+		?>
+		</div>
+	</div>
+<?php endif; ?>
+<div class="popupTweet"></div>
   <script type="text/javascript" src="assets/js/like.js"></script>
  			<script type="text/javascript" src="<?php echo BASE_URL; ?>assets/js/retweet.js"></script>
  			<script type="text/javascript" src="<?php echo BASE_URL; ?>assets/js/popuptweets.js"></script>
@@ -378,31 +343,13 @@ if(isset($_GET['username']) === true && empty($_GET['username']) === false){
  			
  			<script type="text/javascript" src="<?php echo BASE_URL; ?>assets/js/messages.js"></script>
  			<script type="text/javascript" src="<?php echo BASE_URL; ?>assets/js/postMessage.js"></script>
- 			<script type="text/javascript" src="<?php echo BASE_URL; ?>assets/js/notification.js"></script>
-</div>
-<!-- in center end -->
+ 			 			<script type="text/javascript" src="<?php echo BASE_URL; ?>assets/js/notification.js"></script>
 
-<div class="in-right">
-	<div class="in-right-wrap">
-			
-		<!--==WHO TO FOLLOW==-->
-	      <?php $getFromF->whoToFollow($user_id,$profileId); ?>
-		<!--==WHO TO FOLLOW==-->
-			
-		<!--==TRENDS==-->
-	 	   <?php $getFromT->trends(); ?>
-	 	<!--==TRENDS==-->
-			
-	</div><!-- in right wrap-->
-</div>
-<script type="text/javascript" src="<?php echo BASE_URL; ?>assets/js/follow.js"></script>
-<!-- in right end -->
+	</div><!--in full wrap end-->
+</div><!-- in wrappper ends-->
 
-		</div>
-		<!--in full wrap end-->
-	</div>
-	<!-- in wrappper ends-->	
- </div>
- <!-- ends wrapper -->
+</div><!-- ends wrapper -->
+
+
 </body>
 </html>

@@ -10,7 +10,12 @@ class User {
   	$var = stripcslashes($var);
   	return $var;
   }
+public function preventAccess($request, $currentFile, $currently){
 
+if($request == "GET" && $currentFile == $currently){
+	header('Location:'.BASE_URL.'index.php');
+}
+}
   public function search($search){
   	$stmt = $this->pdo->prepare("SELECT `user_id`,`username`,`screenName`,`profileImage`,`profileCover` FROM `users` WHERE `username` LIKE ? OR `screenName` LIKE ?");
   	$stmt->bindValue(1, $search.'%', PDO::PARAM_STR);
@@ -103,6 +108,25 @@ public function register($email, $screenName, $password){
 		}
 	}
 
+	public function delete($table, $array){
+		$sql = "DELETE FROM `{$table}`";
+		$where = " WHERE ";
+
+		foreach($array as $name => $value){
+			$sql .= "{$where} `{$name}` = :{$name}";
+			$where = " AND ";
+		}
+		if($stmt = $this->pdo->prepare($sql)){
+
+			foreach ($array as $name => $value) {
+				$stmt->bindValue(':'.$name, $value);
+			}
+				
+			$stmt->execute();
+		}
+
+	}
+
 public function checkUsername($username){
 		$stmt = $this->pdo->prepare("SELECT `username` FROM `users` WHERE `username` = :username");
 		$stmt->bindParam(":email", $email, PDO::PARAM_STR);
@@ -167,7 +191,7 @@ public function checkUsername($username){
 		if(in_array($ext, $allowed_ext) === true){
 			if($fileSize <= 209272152){
 				$fileRoot = 'users/' . $filename;
-				move_uploaded_file($fileTmp, $fileRoot);
+				move_uploaded_file($fileTmp, $_SERVER['DOCUMENT_ROOT'].'/phptwitter/'.$fileRoot);
 				return $fileRoot;
 
 			}else{
@@ -176,6 +200,32 @@ public function checkUsername($username){
 
 		}else{
 			$GLOBALS['imageError'] = "The extension is not allowed";
+		}
+	}
+
+	public function timeAgo($datetime){
+
+		$time = strtotime($datetime);
+		$current = time();
+		$seconds = $current - $time;
+		$minutes = round($seconds / 60);
+		$hours = round($seconds / 3600);
+		$months = round($seconds / 2600640);
+
+		if($seconds <= 60){
+			if($seconds == 0){
+				return 'now';
+			}else{
+				return $seconds.'s';
+			}
+		}else if($minutes <= 60){
+			return $minutes.'m';
+		}else if($hours <= 24){
+			return $hours.'h';
+		}else if($months <= 12){
+			return date('M j', $time);
+		}else{
+			return date('j M Y', $time);
 		}
 	}
 } 

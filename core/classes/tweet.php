@@ -6,9 +6,10 @@ class Tweet extends User{
     $this->pdo = $pdo;
   }
 
-  public function tweets($user_id){
-  	$stmt = $this->pdo->prepare("SELECT * FROM `tweets` LEFT JOIN `users` ON `tweetBy` = `user_id`WHERE `tweetBy` = :user_id AND `retweetID` = '0' OR `tweetBy` = `user_id` AND `retweetBy` != :user_id ");
-  	$stmt->bindParam("user_id", $user_id, PDO::PARAM_INT);
+  public function tweets($user_id,$num){
+  	$stmt = $this->pdo->prepare("SELECT * FROM `tweets` LEFT JOIN `users` ON `tweetBy` = `user_id`WHERE `tweetBy` = :user_id AND `retweetID` = '0' OR `tweetBy` = `user_id` AND `retweetBy` != :user_id AND `tweetBy` IN(SELECT `receiver` FROM `follow` WHERE `sender` = :user_id) ORDER BY `tweetID` DESC LIMIT :num");
+  	$stmt->bindParam(":user_id", $user_id, PDO::PARAM_INT);
+  	$stmt->bindParam(":num", $num, PDO::PARAM_INT);
   	$stmt->execute();
   	$tweets = $stmt->fetchAll(PDO::FETCH_OBJ);
 
@@ -27,7 +28,9 @@ class Tweet extends User{
 	</div>' 
 	: '').'
 
-	'.((!empty($tweet->retweetMsg) && $tweet->tweetID === $retweet['tweetID'] or $tweet->retweetID > 0) ? '<div class="t-show-head">
+	'.((!empty($tweet->retweetMsg) && $tweet->tweetID === $retweet['tweetID'] or $tweet->retweetID > 0) ? '
+		<div class="t-show-popup" data-tweet="'.$tweet->tweetID.'">
+		<div class="t-show-head">
 	<div class="t-show-img">
 		<img src="'.BASE_URL.$user->profileImage.'"/>
 	</div>
@@ -35,7 +38,7 @@ class Tweet extends User{
 		<div class="t-h-c-name">
 			<span><a href="'.BASE_URL.$user->username.'">'.$user->screenName.'</a></span>
 			<span>@'.$user->username.'</span>
-			<span>'.$retweet['postedOn'].'</span>
+			<span>'.$this->timeAgo($retweet['postedOn']).'</span>
 		</div>
 		<div class="t-h-c-dis">
 			'.$this->getTweetLinks($tweet->retweetMsg).'
@@ -47,22 +50,22 @@ class Tweet extends User{
 		<div class="retweet-t-s-b-inner">
 		'.((!empty($tweet->tweetImage)) ? '
 			<div class="retweet-t-s-b-inner-left">
-				<img src="'.BASE_URL.$tweet->tweetImage.'"/>	
+				<img src="'.BASE_URL.$tweet->tweetImage.'"class="imagePopup" data-tweet="'.$tweet->tweetID.'"/>	
 			</div>' : '').'
-			<div class="retweet-t-s-b-inner-right">
+			<div>
 				<div class="t-h-c-name">
 					<span><a href="'.BASE_URL.$tweet->username.'">'.$tweet->screenName.'</a></span>
 					<span>@'.$tweet->username.'</span>
-					<span>'.$tweet->postedOn.'</span>
+					<span>'.$this->timeAgo($tweet->postedOn).'</span>
 				</div>
 				<div class="retweet-t-s-b-inner-right-text">		
-					'.$tweet->status.'
+					'.$this->getTweetLinks($tweet->status).'
 				</div>
 			</div>
 		</div>
 	</div>
 </div>
-
+</div>
 ' : '
 	
 	<div class="t-show-popup" data-tweet="'.$tweet->tweetID.'">
@@ -74,7 +77,7 @@ class Tweet extends User{
 				<div class="t-h-c-name">
 					<span><a href="'.$tweet->username.'">'.$tweet->screenName.'</a></span>
 					<span>@'.$tweet->username.'</span>
-					<span>'.$tweet->postedOn.'</span>
+					<span>'.$this->timeAgo($tweet->postedOn).'</span>
 				</div>
 				<div class="t-h-c-dis">
 					'.$this->getTweetLinks($tweet->status).'
@@ -87,7 +90,7 @@ class Tweet extends User{
 		<div class="t-show-body">
 		  <div class="t-s-b-inner">
 		   <div class="t-s-b-inner-in">
-		     <img src="'.$tweet->tweetImage.'" class="imagePopup"/>
+		     <img src="'.$tweet->tweetImage.'" class="imagePopup" data-tweet="'.$tweet->tweetID.'"/>
 		   </div>
 		  </div>
 		</div>
@@ -113,13 +116,13 @@ class Tweet extends User{
 					</button>').'
 					
 				</li>
-					
+					'.(($tweet->tweetBy === $user_id)? '
 					<li>
 					<a href="#" class="more"><i class="fa fa-ellipsis-h" aria-hidden="true"></i></a>
 					<ul> 
-					  <li><label class="deleteTweet">Delete Tweet</label></li>
+					  <li><label class="deleteTweet" data-tweet="'.$tweet->tweetID.'">Delete Tweet</label></li>
 					</ul>
-				</li>
+				</li>' : '').'
 			</ul>
 		</div>
 	</div>
@@ -127,6 +130,46 @@ class Tweet extends User{
 </div>
 </div>';
   	}
+  }
+
+  public function getUserTweets($user_id){
+
+  	$stmt = $this->pdo->prepare("SELECT * FROM `tweets` LEFT JOIN `users` ON `tweetBy` = `user_id` WHERE `tweetBy` = :user_id AND `retweetID` = '0' OR `retweetBy` = :user_id");
+
+  	$stmt->bindParam(":user_id", $user_id, PDO::PARAM_INT);
+  	$stmt->execute();
+  	return $stmt->fetchAll(PDO::FETCH_OBJ);
+  }
+
+  public function addLike($user_id, $tweet_id, $get_id){
+  	$stmt = $this->pdo->prepare("UPDATE `tweets` SET `likesCount` = `likesCount` +1 WHERE `tweetID` = :tweet_id");
+  	$stmt->bindParam(":tweet_id", $tweet_id, PDO::PARAM_INT);
+  	$stmt->execute();
+
+  	$this->create('likes', array('likeBy' => $user_id, 'likeOn' => $tweet_id));
+    if($get_id != $user_id){
+      Message::sendNotification($get_id, $user_id,$tweet_id,'like');
+    }
+  }
+
+  public function unlike($user_id, $tweet_id, $get_id){
+  	$stmt = $this->pdo->prepare("UPDATE `tweets` SET `likesCount` = `likesCount` -1 WHERE `tweetID` = :tweet_id");
+  	$stmt->bindParam(":tweet_id", $tweet_id, PDO::PARAM_INT);
+  	$stmt->execute();
+
+  	$stmt = $this->pdo->prepare("DELETE FROM `likes` WHERE `likeBy` = :user_id AND `likeOn` = :tweet_id");
+  	$stmt->bindParam(":user_id", $user_id, PDO::PARAM_INT);
+  	$stmt->bindParam(":tweet_id", $tweet_id, PDO::PARAM_INT);
+	$stmt->execute();  
+  }
+
+  public function likes($user_id, $tweet_id){
+
+  	$stmt = $this->pdo->prepare("SELECT * FROM `likes` WHERE `likeBy` = :user_id AND `likeOn` = :tweet_id");
+  	$stmt->bindParam(":user_id", $user_id, PDO::PARAM_INT);
+  	$stmt->bindParam(":tweet_id", $tweet_id, PDO::PARAM_INT);
+  	$stmt->execute();
+  	return $stmt->fetch(PDO::FETCH_ASSOC);
   }
 
 
@@ -157,6 +200,24 @@ class Tweet extends User{
   		}
   	}
   }
+
+  public function addMention($status, $user_id, $tweet_id){
+    preg_match_all("/#+([a-zA-Z0-9_]+)/i",$status,$matches);
+    if($matches){
+      $result = array_values($matches[1]);
+    }
+    $sql = "SELECT * FROM `users` WHERE `username` = :mention";
+
+    foreach ($result as $trend) {
+      if($stmt = $this->pdo->prepare($sql)){
+        $stmt->execute(array(':mention' =>$trend));
+        $data = $stmt->fetch(PDO::FETCH_OBJ);
+      }
+    }
+    if($data->user_id != $user_id){
+       Message::sendNotification($data->user_id, $user_id,$tweet_id,'mention');
+    }
+  }
   public function getTweetLinks($tweet){
   	$tweet = preg_replace("/(https?:\/\/)([\w]+.)([\w\.]+)/", "<a href='$0' target='_blink'>$0</a>", $tweet);
   	$tweet = preg_replace("/#([\w]+)/", "<a href='".BASE_URL."hashtag/$1'>$0</a>", $tweet);
@@ -176,11 +237,13 @@ class Tweet extends User{
   	$stmt->bindParam(":tweet_id", $tweet_id, PDO::PARAM_INT);
   	$stmt->execute();
 
-  	$stmt = $this->pdo->prepare("INSERT INTO `tweets` (`status`, `tweetBy`, `tweetImage`,`retweetID`,`retweetBy`,`postedOn`,`likesCount`,`retweetCount`,`retweetMsg`) SELECT `status`, `tweetBy`, `tweetImage`,`tweetID`,:user_id,CURRENT_TIMESTAMP,`likesCount`,`retweetCount`,:retweetMsg FROM `tweets` WHERE `tweetID` = :tweet_id");
+  	$stmt = $this->pdo->prepare("INSERT INTO `tweets` (`status`, `tweetBy`, `tweetImage`,`retweetID`,`retweetBy`,`postedOn`,`likesCount`,`retweetCount`,`retweetMsg`) SELECT `status`, `tweetBy`, `tweetImage`,`tweetID`,:user_id, `postedOn`,`likesCount`,`retweetCount`,:retweetMsg FROM `tweets` WHERE `tweetID` = :tweet_id");
   	$stmt->bindParam(":user_id", $user_id, PDO::PARAM_INT);
   	$stmt->bindParam(":retweetMsg", $comment, PDO::PARAM_STR);
   	$stmt->bindParam(":tweet_id", $tweet_id, PDO::PARAM_INT);
   	$stmt->execute();
+
+    Message::sendNotification($get_id, $user_id,$tweet_id,'retweet');
   }
 
   public function checkRetweet($tweet_id, $user_id){
@@ -191,32 +254,66 @@ class Tweet extends User{
   	return $stmt->fetch(PDO::FETCH_ASSOC);
   }
 
-  public function addLike($user_id, $tweet_id, $get_id){
-  	$stmt = $this->pdo->prepare("UPDATE `tweets` SET `likesCount` = `likesCount` +1 WHERE `tweetID` = :tweet_id");
+  public function comments($tweet_id){
+
+  	$stmt = $this->pdo->prepare("SELECT * FROM `comments` LEFT JOIN `users` ON `commentBy` = `user_id` WHERE `commentOn` = :tweet_id");
   	$stmt->bindParam(":tweet_id", $tweet_id, PDO::PARAM_INT);
   	$stmt->execute();
-
-  	$this->create('likes', array('likeBy' => $user_id, 'likeOn' => $tweet_id));
+  	return $stmt->fetchAll(PDO::FETCH_OBJ);
   }
 
-  public function unlike($user_id, $tweet_id, $get_id){
-  	$stmt = $this->pdo->prepare("UPDATE `tweets` SET `likesCount` = `likesCount` -1 WHERE `tweetID` = :tweet_id");
-  	$stmt->bindParam(":tweet_id", $tweet_id, PDO::PARAM_INT);
-  	$stmt->execute();
-
-  	$stmt = $this->pdo->prepare("DELETE FROM `likes` WHERE `likeBy` = :user_id AND `likeOn` = :tweet_id");
+  public function countTweets($user_id){
+  	$stmt = $this->pdo->prepare("SELECT COUNT(`tweetID`) AS `totalTweets` FROM `tweets` WHERE `tweetby` = :user_id AND `retweetID` = '0' OR `retweetBy` = :user_id");
   	$stmt->bindParam(":user_id", $user_id, PDO::PARAM_INT);
-  	$stmt->bindParam(":tweet_id", $tweet_id, PDO::PARAM_INT);
-	$stmt->execute();  
+  	$stmt->execute();
+  	$count = $stmt->fetch(PDO::FETCH_OBJ);
+  	echo $count->totalTweets;
   }
 
-  public function likes($user_id, $tweet_id){
-
-  	$stmt = $this->pdo->prepare("SELECT * FROM `likes` WHERE `likeBy` = :user_id AND `likeOn` = :tweet_id");
-  	$stmt->bindParam(":user_id", $user_id, PDO::PARAM_INT);
-  	$stmt->bindParam(":tweet_id", $tweet_id, PDO::PARAM_INT);
+  public function countLikes($user_id){
+  	$stmt = $this->pdo->prepare("SELECT COUNT(`likeID`) AS `totalLikes` FROM `likes` WHERE `likeBy` = :user_id");
+  	$stmt->bindParam(":user_id",$user_id, PDO::PARAM_INT);
   	$stmt->execute();
-  	return $stmt->fetch(PDO::FETCH_ASSOC);
+  	$count = $stmt->fetch(PDO::FETCH_OBJ);
+  	echo $count->totalLikes;
+  }
+
+  public function trends(){
+    $stmt = $this->pdo->prepare("SELECT *, COUNT(`tweetID`) AS `tweetsCount` FROM `trends` INNER JOIN `tweets` ON `status` LIKE CONCAT('%',`hashtag`,'%') OR `retweetMsg` LIKE CONCAT('%',`hashtag`,'%') GROUP BY `hashtag` ORDER BY `tweetID`");
+    $stmt->execute();
+    $trends = $stmt->fetchAll(PDO::FETCH_OBJ);
+    echo '<div class="trend-wrapper"><div class="trend-inner"><div class="trend-title"><h3>Trends</h3></div>';
+    foreach ($trends as $trend) {
+      echo '<div class="trend-body">
+  <div class="trend-body-content">
+    <div class="trend-link">
+      <a href="'.BASE_URL.'hashtag/'.$trend->hashtag.'">#'.$trend->hashtag.'</a>
+    </div>
+    <div class="trend-tweets">
+      '.$trend->tweetsCount.' <span>tweets</span>
+    </div>
+  </div>
+</div>
+';
+    }
+    echo '</div></div>';
+  }
+
+  public function getTweetByHash($hashtag){
+    $stmt = $this->pdo->prepare("SELECT * FROM `tweets` LEFT JOIN `users` ON `tweetBy` = `user_id` WHERE `status` LIKE :hashtag OR `retweetMsg` LIKE :hashtag");
+    $stmt->bindValue(":hashtag", '%#'.$hashtag.'%', PDO::PARAM_STR);
+    $stmt->execute();
+    return $stmt->fetchAll(PDO::FETCH_OBJ);
+
+  }
+
+
+  public function getUsersByHash($hashtag){
+
+     $stmt = $this->pdo->prepare("SELECT DISTINCT * FROM `tweets` INNER JOIN `users` ON `tweetBy` = `user_id` WHERE `status` LIKE :hashtag OR `retweetMsg` LIKE :hashtag GROUP BY `user_id`");
+     $stmt->bindValue(":hashtag", '%#'.$hashtag.'%', PDO::PARAM_STR);
+     $stmt->execute();
+     return $stmt->fetchAll(PDO::FETCH_OBJ);
   }
 } 
 

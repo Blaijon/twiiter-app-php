@@ -2,15 +2,16 @@
 include 'core/init.php';
 $user_id = $_SESSION['user_id'];
 $user = $getFromU->userData($user_id);
-// $getFromU->create('users', array('username' => 'dany','email' => 'dany@gmail.com','password' => md5('password')))
-// $getFromU->update('users', $user_id, array('username' => 'danynew'))
+$notify = $getFromM->getNotificationCount($user_id);
 if($getFromU->loggedIn() === false){
 	header('Location: index.php');
 }
 
+
 	if(isset($_POST['tweet'])){
 		$status = $getFromU->checkinput($_POST['status']);
 		$tweetImage = '';
+		
 		if(!empty($status) or !empty($_FILES['file']['name'][0])){
 			if(!empty($_FILES['file']['name'][0])){
 				$tweetImage = $getFromU->uploadImage($_FILES['file']);
@@ -18,12 +19,13 @@ if($getFromU->loggedIn() === false){
 			if(strlen($status) > 140){
 				$error = "The text of your tweet is too long";
 			}
-			$getFromU->create('tweets', array('status'=> $status, 'tweetBy' => $user_id, 'tweetImage' =>$tweetImage, 'postedOn' => date('Y-m-d H:i:s')));
+			$tweet_id = $getFromU->create('tweets', array('status'=> $status, 'tweetBy' => $user_id, 'tweetImage' =>$tweetImage, 'postedOn' => date('Y-m-d H:i:s')));
 			  	preg_match_all("/#+([a-zA-Z0-9_]+)/i",$status,$hashtag);
 
 			  	if(!empty($hashtag)){
 			  		$getFromT->addTrend($status);
 			  	}
+			  	$getFromT->addMention($status, $user_id, $tweet_id);
 
 		}else {
 			$error = "Type or choose image to tweet";
@@ -55,8 +57,8 @@ if($getFromU->loggedIn() === false){
 		<div class="nav-left">
 			<ul>
 				<li><a href="#"><i class="fa fa-home" aria-hidden="true"></i>Home</a></li>
-				<li><a href="i/notifications"><i class="fa fa-bell" aria-hidden="true"></i>Notification</a></li>
-				<li><i class="fa fa-envelope" aria-hidden="true"></i>Messages</li>
+				<li><a href="i/notifications"><i class="fa fa-bell" aria-hidden="true"></i>Notification<span id="notification"><?php if($notify->totalN > 0){echo '<span class="span-i">'.$notify->totalN.'</span>';}?></span></a></li>
+				<li id="messagePopup"><i class="fa fa-envelope" aria-hidden="true"></i>Messages<span id="messages"><?php if($notify->totalM > 0){echo '<span class="span-i">'.$notify->totalN.'</span>';}?></span></li>
 			</ul>
 		</div><!-- nav left ends-->
 
@@ -125,7 +127,7 @@ if($getFromU->loggedIn() === false){
 								TWEETS
 							</div>
 							<div class="num-body">
-								10
+								<?php $getFromT->countTweets($user_id); ?>
 							</div>
 						</div>
 						<div class="num-box">
@@ -150,7 +152,7 @@ if($getFromU->loggedIn() === false){
 		</div><!-- info box end-->
 
 	<!--==TRENDS==-->
- 	  <!---TRENDS HERE-->
+ 	  <?php $getFromT->trends(); ?>
  	<!--==TRENDS==-->
 
 	</div><!-- in left wrap-->
@@ -195,7 +197,7 @@ if($getFromU->loggedIn() === false){
 			
 				<!--Tweet SHOW WRAPPER-->
 				 <div class="tweets">
- 				  	<?php $getFromT->tweets($user_id); ?>
+ 				  	<?php $getFromT->tweets($user_id, 10); ?>
  				 </div>
  				<!--TWEETS SHOW WRAPPER-->
 
@@ -207,6 +209,14 @@ if($getFromU->loggedIn() === false){
  			<script type="text/javascript" src="assets/js/like.js"></script>
  			<script type="text/javascript" src="assets/js/retweet.js"></script>
  			<script type="text/javascript" src="assets/js/popuptweets.js"></script>
+ 			<script type="text/javascript" src="assets/js/delete.js"></script>
+ 			<script type="text/javascript" src="assets/js/comment.js"></script>
+ 			<script type="text/javascript" src="assets/js/popupForm.js"></script>
+ 			<script type="text/javascript" src="assets/js/fetch.js"></script>
+ 			<script type="text/javascript" src="assets/js/follow.js"></script>
+ 			<script type="text/javascript" src="assets/js/messages.js"></script>
+ 			<script type="text/javascript" src="assets/js/postMessage.js"></script>
+ 			<script type="text/javascript" src="assets/js/notification.js"></script>
 			</div><!-- in left wrap-->
 		</div><!-- in center end -->
 
@@ -214,13 +224,13 @@ if($getFromU->loggedIn() === false){
 			<div class="in-right-wrap">
 
 		 	<!--Who To Follow-->
-		      <!--WHO_TO_FOLLOW HERE-->
+		      <?php $getFromF->whoToFollow($user_id, $user_id); ?>
       		<!--Who To Follow-->
 
  			</div><!-- in left wrap-->
 
 		</div><!-- in right end -->
-
+<script type="text/javascript" src="assets/js/follow.js"></script>
 	</div><!--in full wrap end-->
 
 </div><!-- in wrappper ends-->

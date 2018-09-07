@@ -1,7 +1,16 @@
-<?php include '../core/init.php';
+<?php
 
+if($_SERVER['REQUEST_METHOD'] == "GET" && realpath(__FILE__) == realpath($_SERVER['SCRIPT_FILENAME'])){
+	header('Location: ../index.php');
+}
+include '../core/init.php';
+
+if(isset($_SESSION['user_id']) === false){
+	header('Location: ../index.php')
+}
 $user_id = $_SESSION['user_id'];
 $user = $getFromU->userData($user_id);
+$step = $_GET['step'];
 
 if(isset($_GET['step']) === true && empty($_GET['step']) === false){
 	if(isset($_POST['next']))

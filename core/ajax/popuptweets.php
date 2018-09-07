@@ -1,13 +1,16 @@
 <?php 
 include '../init.php';
+$getFromU->preventAccess($_SERVER['REQUEST_METHOD'], realpath(__FILE__), realpath($_SERVER['SCRIPT_FILENAME']));
+
 if(isset($_POST['showpopup']) && !empty($_POST['showpopup'])){
 
 	$tweetID = $_POST['showpopup'];
-	$user_id = $_SESSION['user_id'];
+	$user_id = @$_SESSION['user_id'];
 	$tweet  = $getFromT->getPopupTweet($tweetID);
 	$user  = $getFromU->userData($user_id);
 	$likes = $getFromT->likes($user_id, $tweetID);
 	$retweet = $getFromT->checkRetweet($tweetID,$user_id);
+	$comments = $getFromT->comments($tweetID);
 	?>
 	<div class="tweet-show-popup-wrap">
 <input type="checkbox" id="tweet-show-popup-wrap">
@@ -96,13 +99,13 @@ if(isset($_POST['showpopup']) && !empty($_POST['showpopup'])){
 					</button>').'
 					
 				</li>
-					
+					'.(($tweet->tweetBy === $user_id ? '
 					<li>
 					<a href="#" class="more"><i class="fa fa-ellipsis-h" aria-hidden="true"></i></a>
 					<ul> 
-					  <li><label class="deleteTweet">Delete Tweet</label></li>
+					  <li><label class="deleteTweet" data-tweet="'.$tweet->tweetID.'">Delete Tweet</label></li>
 					</ul>
-				</li>';
+				</li>' : ''));
 					}else{
 						?>
 					
@@ -121,7 +124,7 @@ if(isset($_POST['showpopup']) && !empty($_POST['showpopup'])){
 				<img src="<?php echo BASE_URL.$user->profileImage;?>"/>
 			</div>
 			<div class="tweet-show-popup-footer-input-right">
-				<input id="commentField" type="text" name="comment"  placeholder="Reply to @username">
+				<input id="commentField" type="text" data-tweet="<?php echo $tweet->tweetID; ?>" name="comment"  placeholder="Reply to @<?php echo $tweet->username; ?>">
 			</div>
 		</div>
 		<div class="tweet-footer">
@@ -136,14 +139,57 @@ if(isset($_POST['showpopup']) && !empty($_POST['showpopup'])){
 		 		</ul>
 		 	</div>
 		 	<div class="t-fo-right">
- 		 		<input type="submit" id="postComment">
+ 		 		<input type="submit" id="postComment" value="Tweet">
+ 		 		<script type="text/javascript" src="<?php echo BASE_URL;?>/assets/js/follow.js"></script>
 		 	</div>
 		 </div>
 	</div><!--tweet-show-popup-footer-input-wrap end-->
 <?php } ?>
 <div class="tweet-show-popup-comment-wrap">
 	<div id="comments">
-	 	<!--COMMENTS--> 
+	 	<?php 
+	 	foreach ($comments as $comment) {
+	 		echo '<div class="tweet-show-popup-comment-box">
+<div class="tweet-show-popup-comment-inner">
+	<div class="tweet-show-popup-comment-head">
+		<div class="tweet-show-popup-comment-head-left">
+			 <div class="tweet-show-popup-comment-img">
+			 	<img src="'.BASE_URL.$comment->profileImage.'">
+			 </div>
+		</div>
+		<div class="tweet-show-popup-comment-head-right">
+			  <div class="tweet-show-popup-comment-name-box">
+			 	<div class="tweet-show-popup-comment-name-box-name"> 
+			 		<a href="'.BASE_URL.$comment->username.'">'.$comment->screenName.'</a>
+			 	</div>
+			 	<div class="tweet-show-popup-comment-name-box-tname">
+			 		<a href="'.BASE_URL.$comment->username.'">@'.$comment->username.' - '.$comment->commentAt.'</a>
+			 	</div>
+			 </div>
+			 <div class="tweet-show-popup-comment-right-tweet">
+			 		<p><a href="'.BASE_URL.$tweet->username.'">@'.$tweet->username.'</a> '.$comment->comment.'</p>
+			 </div>
+		 	<div class="tweet-show-popup-footer-menu">
+				<ul>
+					<li><button><i class="fa fa-share" aria-hidden="true"></i></button></li>
+					<li><a href="#"><i class="fa fa-heart-o" aria-hidden="true"></i></a></li>
+					'.(($comment->commentBy === $user_id) ? '
+					<li>
+					<a href="#" class="more"><i class="fa fa-ellipsis-h" aria-hidden="true"></i></a>
+					<ul> 
+					  <li><label class="deleteComment" data-tweet="'.$tweet->tweetID.'" data-comment="'.$comment->commentID.'">Delete Tweet</label></li>
+					</ul>
+					</li>' : '').'
+				</ul>
+			</div>
+		</div>
+	</div>
+</div>
+<!--TWEET SHOW POPUP COMMENT inner END-->
+</div>
+';
+	 	}
+	 	 ?> 
 	</div>
 
 </div>
